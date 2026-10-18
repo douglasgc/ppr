@@ -1,12 +1,14 @@
 """Adaptador HTTP do Banco Mundial e cache dos dados harmonizados."""
 
 import os
-from pathlib import Path
 import tempfile
 import time
+from pathlib import Path
 
 import pandas as pd
 import requests
+
+from .config import PPRConfig
 
 
 class WorldBankDataLoader:
@@ -84,6 +86,37 @@ class WorldBankDataLoader:
             frame = frame.merge(values, on="country_code", how="left", validate="one_to_one")
         frame["year"] = year
 
+        self._write_cache(frame, cache_path)
+        return frame
+
+    def fetch_history(self, country_codes: tuple[str, ...], start_year: int = 1960,
+                      end_year: int = 2023, *, refresh: bool = False) -> pd.DataFrame:
+        config = PPRConfig(year=end_year, min_population=0, custom_country_codes=country_codes)
+        PPRConfig(year=start_year)
+        if start_year > end_year or not config.custom_country_codes:
+            raise ValueError("Informe países e um intervalo de anos válido.")
+        codes = tuple(sorted(config.custom_country_codes))
+        cache_path = self.cache_dir / f"history_v1_{'_'.join(codes)}_{start_year}_{end_year}.csv"
+        if cache_path.exists() and not refresh:
+            return pd.read_csv(cache_path, dtype={"country_code": str})
+        frame = pd.MultiIndex.from_product(
+            [codes, range(start_year, end_year + 1)], names=["country_code", "year"]
+        ).to_frame(index=False)
+        frame["country_name"] = frame["country_code"]
+        for code, name in self.INDICATORS.items():
+            if name not in ("gdp", "gastos_governo", "populacao"):
+                continue
+            rows = self._records(f"country/{';'.join(codes)}/indicator/{code}", date=f"{start_year}:{end_year}")
+            values = pd.DataFrame([
+                {"country_code": row["countryiso3code"], "year": int(row["date"]), name: row["value"]}
+                for row in rows if row.get("countryiso3code") in codes
+                and str(row.get("date", "")).isdigit() and start_year <= int(row["date"]) <= end_year
+            ], columns=["country_code", "year", name])
+            frame = frame.merge(values, on=["country_code", "year"], how="left", validate="one_to_one")
+        self._write_cache(frame, cache_path)
+        return frame
+
+    def _write_cache(self, frame: pd.DataFrame, cache_path: Path) -> None:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         # Substituição atômica evita que CLI/dashboard leiam um CSV pela metade.
         with tempfile.NamedTemporaryFile(
@@ -96,4 +129,3 @@ class WorldBankDataLoader:
                 os.replace(temporary, cache_path)
             finally:
                 temporary.unlink(missing_ok=True)
-        return frame

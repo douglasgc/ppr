@@ -7,11 +7,13 @@ from ppr.presentation import (
     change,
     china_exclusion_note,
     country_label,
+    is_taiwan_query,
     leaderboard_html,
     money,
     percent,
     prepare_ranking,
     search_ranking,
+    taiwan_availability_note,
 )
 from tests.test_ppr import sample_data
 
@@ -41,6 +43,18 @@ class PresentationTests(unittest.TestCase):
         self.assertEqual(country_label("USA", "United States")[0], "Estados Unidos")
         self.assertEqual(country_label("ZZZ", "Fallback")[0], "Fallback")
 
+    def test_taiwan_aliases_and_absence_explanation(self):
+        for query in ("Taiwan", "TWN", "Formosa", "Taiuã"):
+            self.assertTrue(is_taiwan_query(query))
+        self.assertFalse(is_taiwan_query("Tailândia"))
+        self.assertEqual(country_label("TWN", "Taiwan, Province of China"), ("Taiwan", "🇹🇼"))
+        self.assertIn("não foi retornado", taiwan_availability_note(sample_data(), self.data))
+        raw = sample_data().copy()
+        raw.loc[0, "country_code"] = "TWN"
+        self.assertIn("dados de entrada", taiwan_availability_note(raw, self.data))
+        ranked = RothbardEngine().calculate(raw, PPRConfig(min_population=0))
+        self.assertEqual(taiwan_availability_note(raw, ranked), "")
+
     def test_china_labels_scope_and_search_are_explicit(self):
         data = RothbardEngine().calculate(china_data(), PPRConfig(min_population=0))
         ranked = prepare_ranking(data, "Maior PPR por pessoa")
@@ -48,7 +62,7 @@ class PresentationTests(unittest.TestCase):
         self.assertEqual(len(search_ranking(ranked, "china", [])), 3)
         self.assertEqual(search_ranking(ranked, "China continental", [])["country_code"].tolist(), ["CHN"])
         html = leaderboard_html(ranked, "Maior PPR por pessoa")
-        self.assertIn("Não inclui Hong Kong e Macau", html)
+        self.assertIn("Não inclui Hong Kong, Macau ou Taiwan", html)
         self.assertEqual(html.count("Região administrativa especial"), 2)
 
     def test_china_missing_data_is_explained_without_merging_regions(self):

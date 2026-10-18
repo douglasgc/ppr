@@ -49,6 +49,9 @@ Alpha=2 operationalizes a Rothbard-inspired premise, not a consensus measure,
 official welfare statistic or a complete reconstruction of Rothbard's methodology.
 Rank changes compare GDP and PPR in the same year, NOT economic growth over time.
 China, Hong Kong and Macao have separate World Bank series. Do not silently combine them.
+Taiwan is not included in CHN_AGG. WDI does not list Taiwan separately; consult
+metadata.coverage_notes.TWN for actual input coverage. Absence is not zero population
+or output. Do not substitute mainland China or invent Taiwan observations.
 
 MCP endpoint: /mcp (Streamable HTTP, not a JSON dump).
 Tools: get_metadata, get_dataset, get_country. Resource: ppr://metadata.

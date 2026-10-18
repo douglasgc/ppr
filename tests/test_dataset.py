@@ -41,6 +41,17 @@ class DatasetTests(unittest.TestCase):
         self.assertEqual(result["records"][0]["rank_ppr_per_capita"], 2)
         self.assertEqual(result["records"][0]["position"], 2)
 
+    def test_taiwan_coverage_is_explicit_without_fabricated_observations(self):
+        result = build_dataset(sample_data(), PPRConfig(min_population=0), countries=["TWN"])
+        self.assertEqual(result["records"], [])
+        self.assertEqual(result["raw_records"], [])
+        self.assertEqual(result["excluded"], [])
+        self.assertEqual(result["metadata"]["coverage_notes"]["TWN"], {
+            "source_series_present": False, "in_ranked_cohort": False, "included_in_china_aggregate": False,
+        })
+        self.assertIn("not included", result["metadata"]["taiwan_context"])
+        self.assertIn("Taiwan", result["metadata"]["aggregation_note"])
+
     def test_wrong_year_cannot_be_silently_relabeled(self):
         raw = sample_data()
         raw["year"] = 2022

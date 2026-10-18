@@ -2,6 +2,8 @@
 
 [English](README.en.md) · [Guia para LLMs](llms.txt)
 
+**Estudo publicado: [openppr.streamlit.app](https://openppr.streamlit.app/)**
+
 Pipeline do Banco Mundial, ranking interativo, mapa-múndi e API/MCP para explorar:
 
 ```text
@@ -57,12 +59,25 @@ execute `pip install -e .` e depois `streamlit run app.py`.
   A cartografia do Plotly requer internet; territórios pequenos podem não ser visíveis.
 - **Busca:** nome em português/inglês ou código; não recalcula as posições do grupo.
 - **Por país:** PIB − desconto = PPR; comparação dos três cenários e valores totais.
+- **Países clicáveis:** clique no nome no ranking ou nos destaques para abrir uma
+  análise com URL compartilhável, preservando ano, peso, idioma e recorte da China.
+- **Histórico:** gráfico de PIB e PPR por ano, em totais ou por pessoa, com período
+  ajustável, população de cada ano e download CSV. Consulta apenas três indicadores
+  do país selecionado, com cache; não baixa o ranking mundial ano a ano.
 - **Downloads:** CSV e **JSON completo**, com todas as linhas encontradas, indicadores,
   dados brutos, exclusões e metadados — independentemente da paginação.
 
 As setas comparam PIB e PPR **no mesmo ano**, não evolução histórica. Empates usam
 posições `1, 1, 3`. Rankings usam valores não arredondados. Mudar a população mínima
 altera o grupo; buscar ou selecionar países apenas recorta a visualização.
+
+O gráfico histórico usa **USD correntes**: variações incluem inflação e câmbio,
+não representam necessariamente crescimento real. O mesmo α vale para todos os anos.
+PIB pode aparecer em anos sem G; PPR fica ausente nesses anos. Por pessoa exige
+população válida. Lacunas não são interpoladas nem substituídas por zero. A China
+agregada exige as três parcelas em cada ano; nunca usa um agregado parcial.
+
+Exemplo de análise direta: [Brasil](https://openppr.streamlit.app/?country=BRA&year=2023&alpha=2&lang=pt).
 
 ### China: separada ou agregada
 
@@ -80,6 +95,20 @@ e mantém apenas as séries separadas disponíveis, **sem agregado parcial ou im
 Componentes opcionais ficam nulos se faltar qualquer parcela. Somar exportações e
 importações não elimina comércio intragrupo; não trate esses totais como comércio
 externo consolidado. O mapa colore CHN/HKG/MAC com a mesma posição no modo agregado.
+
+### E Taiwan?
+
+**Taiwan não faz parte da China agregada deste estudo**, que é apenas `CHN + HKG + MAC`.
+O Banco Mundial [explica que o WDI não lista Taiwan como série separada](https://datahelpdesk.worldbank.org/knowledgebase/articles/114933-where-are-your-data-on-taiwan).
+[A nota da série CHN](https://databank.worldbank.org/metadataglossary/world-development-indicators/country/CHN)
+também exclui Hong Kong, Macau e Taiwan, salvo indicação contrária. Neste recorte,
+não usamos CHN como substituto de Taiwan, nem interpretamos ausência como população,
+PIB ou PPR iguais a zero. A busca por `Taiwan`, `Formosa` ou `TWN` explica a cobertura.
+
+Para incluir Taiwan, será necessário compatibilizar PIB, consumo final governamental,
+população, ano e moeda com outra fonte oficial, como a DGBAS. Isso ainda não está
+implementado. Os metadados HTTP/MCP/JSON declaram essa limitação e informam se TWN
+está realmente presente nos dados de entrada. Não é uma classificação de soberania.
 
 ## HTTP e mini MCP para LLMs
 

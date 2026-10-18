@@ -9,6 +9,7 @@ import pycountry
 from babel import Locale
 
 from .i18n import t
+from .navigation import country_url
 
 SORT_FIELDS = [
     ("sort_ppr_pc", "ppr_per_capita", "ppr_pc"),
@@ -31,6 +32,18 @@ def china_labels(lang: str = "pt") -> dict:
 SORT_OPTIONS = sort_options()
 CHINA_LABELS = china_labels()
 CHINA_CONTEXT = t("china_context")
+TAIWAN_REFERENCE = "https://datahelpdesk.worldbank.org/knowledgebase/articles/114933-where-are-your-data-on-taiwan"
+
+
+def is_taiwan_query(query: str) -> bool:
+    normalized = normalize("NFKD", query.casefold()).encode("ascii", "ignore").decode().strip()
+    return normalized == "twn" or any(alias in normalized for alias in ("taiwan", "taiua", "formosa"))
+
+
+def taiwan_availability_note(raw: pd.DataFrame, ranked: pd.DataFrame, lang: str = "pt") -> str:
+    if ranked["country_code"].eq("TWN").any():
+        return ""
+    return t("taiwan_filtered" if raw["country_code"].eq("TWN").any() else "taiwan_missing", lang)
 
 
 def number(value: float, decimals: int = 0, lang: str = "pt") -> str:
@@ -55,6 +68,8 @@ def change(value: int, lang: str = "pt") -> str:
 
 
 def country_label(code: str, fallback: str, lang: str = "pt") -> tuple[str, str]:
+    if code == "TWN":
+        return "Taiwan", "🇹🇼"
     labels = china_labels(lang)
     if code in labels:
         return labels[code]
@@ -127,14 +142,16 @@ def metric_value(row: pd.Series, metric: str, lang: str = "pt") -> str:
     return money(row[metric], lang=lang)
 
 
-def podium_html(data: pd.DataFrame, sort_label: str, lang: str = "pt") -> str:
+def podium_html(data: pd.DataFrame, sort_label: str, lang: str = "pt", link_context: dict | None = None) -> str:
     metric, title = sort_options(lang)[sort_label]
     cards = []
     for _, row in data.head(3).iterrows():
         hint = t("retained_hint", lang, value=percent(row["retencao_privada_pct"], lang))
+        url = escape(country_url(row["country_code"], **(link_context or {"lang": lang})), quote=True)
         cards.append(
             f'<article class="leader-card"><span class="leader-place">#{int(row["posicao"]):02d}</span>'
-            f'<div class="leader-country">{row["bandeira"]} {escape(row["nome"])}</div>'
+            f'<div class="leader-country"><a class="country-link" href="{url}" target="_self">'
+            f'{row["bandeira"]} {escape(row["nome"])}</a></div>'
             f'<div class="leader-value">{metric_value(row, metric, lang)}</div>'
             f'<div class="muted">{title} · {hint}</div>'
             f'<div class="muted">{t("population_note", lang, count=number(row["populacao"], lang=lang))}</div></article>'
@@ -142,7 +159,7 @@ def podium_html(data: pd.DataFrame, sort_label: str, lang: str = "pt") -> str:
     return '<div class="leaders">' + "".join(cards) + "</div>"
 
 
-def leaderboard_html(data: pd.DataFrame, sort_label: str, lang: str = "pt") -> str:
+def leaderboard_html(data: pd.DataFrame, sort_label: str, lang: str = "pt", link_context: dict | None = None) -> str:
     metric, title = sort_options(lang)[sort_label]
     comparison = "ppr_per_capita" if metric == "gdp_per_capita" else "gdp_per_capita"
     comparison_title = t("ppr_pc" if comparison == "ppr_per_capita" else "gdp_pc", lang)
@@ -151,12 +168,14 @@ def leaderboard_html(data: pd.DataFrame, sort_label: str, lang: str = "pt") -> s
         delta = int(row["dif_ranking"])
         tone = "up" if delta > 0 else "down" if delta < 0 else "neutral"
         scope = f' · {escape(row["recorte"])}' if row.get("recorte", "") else ""
+        url = escape(country_url(row["country_code"], **(link_context or {"lang": lang})), quote=True)
         rows.append(
             '<tr>'
             f'<td><span class="position">{int(row["posicao"]):02d}</span></td>'
-            f'<th scope="row"><div class="country-cell"><span class="flag">{row["bandeira"]}</span>'
+            f'<th scope="row"><a class="country-link country-cell" href="{url}" target="_self" '
+            f'title="{t("open_analysis", lang)}"><span class="flag">{row["bandeira"]}</span>'
             f'<span>{escape(row["nome"])}<small>{escape(row["country_code"])}{scope}</small>'
-            f'<small class="mobile-population">{t("population_note", lang, count=number(row["populacao"], lang=lang))}</small></span></div></th>'
+            f'<small class="mobile-population">{t("population_note", lang, count=number(row["populacao"], lang=lang))}</small></span></a></th>'
             f'<td class="population-column">{number(row["populacao"], lang=lang)}</td>'
             f'<td class="primary-value">{metric_value(row, metric, lang)}</td>'
             f'<td class="secondary-column">{money(row[comparison], lang=lang)}</td>'

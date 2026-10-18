@@ -26,6 +26,10 @@ CHN excludes Hong Kong and Macao. Combined mode replaces CHN/HKG/MAC with CHN_AG
 summing same-year levels before computing per-person measures. It requires every
 essential input for all three regions; never invent a partial aggregate. Raw source
 rows remain available. Trade components are not consolidated for internal flows.
+Taiwan is not included in CHN or CHN_AGG for the coverage used here. WDI does not
+list Taiwan separately; metadata.coverage_notes.TWN reports actual input coverage.
+Missing Taiwan data are not zero GDP, PPR or population. Do not invent observations
+or substitute China. Additional official data require separate harmonization.
 
 English field names are stable; lang changes descriptive text and display names.
 countries is comma-separated over HTTP, a list in MCP. It filters views, not ranks.

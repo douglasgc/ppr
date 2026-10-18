@@ -8,6 +8,18 @@ from tests.test_presentation import china_data
 
 
 class AggregationTests(unittest.TestCase):
+    def test_taiwan_is_never_added_to_combined_china(self):
+        raw = china_data()
+        taiwan = raw.iloc[:1].copy()
+        taiwan["country_code"] = "TWN"
+        taiwan["populacao"] = 100
+        prepared, status = aggregate_china(pd.concat([raw, taiwan], ignore_index=True), "combined")
+        self.assertTrue(status["applied"])
+        self.assertEqual(set(prepared["country_code"]), {"CHN_AGG", "TWN"})
+        aggregate = prepared.set_index("country_code").loc["CHN_AGG"]
+        self.assertEqual(aggregate["gdp"], raw["gdp"].sum())
+        self.assertEqual(aggregate["populacao"], raw["populacao"].sum())
+
     def test_sums_levels_and_replaces_components_before_per_capita(self):
         raw = china_data()
         raw["populacao"] = [10, 100, 1000]

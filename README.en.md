@@ -2,6 +2,8 @@
 
 [Português](README.md) · [LLM guide](llms.txt)
 
+**Live study: [openppr.streamlit.app](https://openppr.streamlit.app/)**
+
 A World Bank pipeline, interactive ranking, world map and HTTP/MCP access.
 
 ## Rothbard’s thesis, briefly
@@ -55,11 +57,24 @@ a virtual environment, `pip install -e .`, then `streamlit run app.py`.
 - World map colors follow the selected ranking, with gray for no result. List search
   does not filter the map. Plotly’s basemap requires internet; small territories may not be visible.
 - Country view explains GDP − deduction = PPR and compares the three scenarios.
+- Click any country name in the ranking or highlights to open a shareable analysis
+  URL, preserving year, weight, language and China coverage.
+- Historical GDP/PPR chart: country totals or per-person values, adjustable period,
+  yearly population and CSV download. Only three historical indicators are fetched
+  for the selected economy, with caching; world rankings are not downloaded year by year.
 - Full JSON includes every matching row, all indicators, raw inputs, exclusions and metadata.
 
 Rank changes compare GDP and PPR in the **same year**, not change over time. Ties use
 1,1,3; ranks are based on unrounded values. Minimum population changes the cohort;
 search and country selection only filter the view.
+
+History uses **current USD**, so changes include inflation and exchange-rate effects,
+not necessarily real growth. The same alpha applies throughout. GDP can be shown
+when G is missing, while PPR remains unknown. Per-person values require valid annual
+population. Gaps are not interpolated or replaced with zero. Combined China requires
+all three components for each annual total; partial aggregates are never fabricated.
+
+Direct analysis example: [Brazil](https://openppr.streamlit.app/?country=BRA&year=2023&alpha=2&lang=en).
 
 ### China coverage
 
@@ -73,6 +88,20 @@ If unavailable, a warning explains why and only separate available series remain
 no partial aggregate is fabricated. Optional fields remain null if any component
 is missing. Trade totals do not eliminate internal flows. The combined map gives
 the three geographic components the same synthetic rank.
+
+### What about Taiwan?
+
+**Taiwan is not included in this study’s Combined China**, which is only `CHN + HKG + MAC`.
+The World Bank [explains that WDI does not list Taiwan as a separate series](https://datahelpdesk.worldbank.org/knowledgebase/articles/114933-where-are-your-data-on-taiwan).
+[CHN’s coverage note](https://databank.worldbank.org/metadataglossary/world-development-indicators/country/CHN)
+also excludes Hong Kong, Macao and Taiwan unless otherwise stated. Mainland China
+is not used as a substitute; missing Taiwan data do not mean zero GDP, PPR or population.
+Searching `Taiwan`, `Formosa` or `TWN` explains this coverage gap.
+
+Including Taiwan requires harmonizing GDP, government final consumption, population,
+years and currency with another official source such as DGBAS; that integration is
+not yet implemented. HTTP/MCP/JSON metadata disclose the limitation and whether TWN
+actually appears in the input data. This is not a sovereignty classification.
 
 ## HTTP + mini MCP
 

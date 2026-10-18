@@ -10,7 +10,7 @@ from .config import PPRConfig
 from .data import WorldBankDataLoader
 from .engine import RothbardEngine
 from .i18n import ABOUT, LANGUAGES, t
-from .presentation import country_label, prepare_ranking, sort_options
+from .presentation import TAIWAN_REFERENCE, country_label, prepare_ranking, sort_options
 
 FIELD_MAP = {
     "country_code": "country_code", "country_name": "source_country_name", "year": "year",
@@ -66,6 +66,7 @@ def metadata(lang: str = "en") -> dict:
         "indicators": {FIELD_MAP[name]: code for code, name in WorldBankDataLoader.INDICATORS.items()},
         "fields": DESCRIPTIONS, "methodology": ABOUT[lang], "china_context": t("china_context", lang),
         "aggregation_note": t("aggregate_note", lang),
+        "taiwan_context": t("taiwan_context", lang), "taiwan_reference_url": TAIWAN_REFERENCE,
         "cautions": ["Not PPP- or inflation-adjusted; not a well-being or disposable-income measure.",
                      "Government consumption is not total government spending; alpha=2 is an operational approximation.",
                      "World Bank values can be revised; local snapshots do not expire automatically.",
@@ -91,6 +92,9 @@ def build_dataset(raw: pd.DataFrame, config: PPRConfig, *, lang: str = "en", chi
     calculated = RothbardEngine().calculate(prepared, config)
     ranked = prepare_ranking(calculated, matching[0], lang)
     ranked_count = len(ranked)
+    taiwan_coverage = {"source_series_present": bool(raw["country_code"].eq("TWN").any()),
+                       "in_ranked_cohort": bool(ranked["country_code"].eq("TWN").any()),
+                       "included_in_china_aggregate": False}
     excluded = []
     eligible_codes = set(ranked["country_code"])
     for _, row in prepared.iterrows():
@@ -114,6 +118,7 @@ def build_dataset(raw: pd.DataFrame, config: PPRConfig, *, lang: str = "en", chi
                      "record_count": len(ranked), "raw_record_count": len(raw_selected),
                      "excluded_count": len(excluded), "complete": True, "truncated": False,
                      "countries": countries, "aggregation": aggregation,
+                     "coverage_notes": {"TWN": taiwan_coverage},
                      "ranking_scope": "All eligible economies after aggregation and population filtering; country selection is view-only.",
                      "snapshot_note": "generated_at is response generation time, not source publication or refresh time."},
         "records": records(ranked), "excluded": excluded, "raw_records": records(raw_selected),

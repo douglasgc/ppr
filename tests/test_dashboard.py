@@ -138,6 +138,62 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(app.sidebar.radio[0].value, "none")
         self.assertEqual(app.selectbox(key="sort_order").value, "ppr")
 
+    @patch("ppr.data.WorldBankDataLoader.fetch_history")
+    @patch("ppr.data.WorldBankDataLoader.fetch")
+    def test_country_deep_link_opens_analysis_and_history(self, fetch, fetch_history):
+        from tests.test_history import historical_sample
+
+        raw = sample_data()
+        raw["populacao"] *= 100_000
+        fetch.return_value = raw
+        fetch_history.return_value = historical_sample()
+        app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"))
+        app.query_params.update(country="BRA", year="2023", alpha="1.25", lang="en", min_population="0")
+        app.run(timeout=30)
+        self.assertFalse(app.exception)
+        self.assertEqual(app.title[0].value, "Explore a country")
+        self.assertEqual(app.sidebar.slider[0].value, 1.25)
+        self.assertEqual(app.radio(key="history_measure").value, "total")
+        self.assertEqual(len(app.tabs), 0)
+        self.assertTrue(any("GDP and PPR over time" in item.value for item in app.markdown))
+        fetch_history.assert_called_once_with(("BRA",), 1960, 2023, refresh=False)
+        app.radio(key="history_measure").set_value("per_capita").run(timeout=30)
+        self.assertFalse(app.exception)
+        self.assertEqual(fetch_history.call_count, 1)
+
+    @patch("ppr.data.WorldBankDataLoader.fetch_history")
+    @patch("ppr.data.WorldBankDataLoader.fetch")
+    def test_ranking_does_not_download_history_until_country_is_opened(self, fetch, fetch_history):
+        raw = sample_data()
+        raw["populacao"] *= 100_000
+        fetch.return_value = raw
+        self.run_app()
+        fetch_history.assert_not_called()
+
+    @patch("ppr.data.WorldBankDataLoader.fetch_history", side_effect=ValueError("API unavailable"))
+    @patch("ppr.data.WorldBankDataLoader.fetch")
+    def test_history_failure_does_not_hide_country_analysis(self, fetch, fetch_history):
+        raw = sample_data()
+        raw["populacao"] *= 100_000
+        fetch.return_value = raw
+        app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"))
+        app.query_params["country"] = "BRA"
+        app.run(timeout=30)
+        self.assertFalse(app.exception)
+        self.assertEqual(len(app.metric), 3)
+        self.assertTrue(any("Não foi possível carregar o histórico" in item.value for item in app.warning))
+
+    @patch("ppr.data.WorldBankDataLoader.fetch")
+    def test_taiwan_search_explains_source_coverage(self, fetch):
+        raw = sample_data()
+        raw["populacao"] *= 100_000
+        fetch.return_value = raw
+        app = self.run_app()
+        app.text_input[0].set_value("Taiwan").run(timeout=30)
+        self.assertFalse(app.exception)
+        self.assertTrue(any("não entra na China agregada" in item.value for item in app.info))
+        self.assertTrue(any("Taiwan (TWN) não foi retornado" in item.value for item in app.warning))
+
 
 if __name__ == "__main__":
     unittest.main()

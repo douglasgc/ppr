@@ -2,7 +2,6 @@
 
 import json
 from datetime import date
-from html import escape
 from math import ceil
 from pathlib import Path
 
@@ -13,20 +12,22 @@ import streamlit as st
 from ppr import PPRConfig, RothbardEngine, WorldBankDataLoader
 from ppr.aggregation import aggregate_china
 from ppr.charts import comparison_chart, world_map
+from ppr.country_view import analysis_link, load_history, render_country
 from ppr.dataset import FIELD_MAP, build_dataset
 from ppr.i18n import ABOUT, t
+from ppr.navigation import requested_country, route_defaults
 from ppr.presentation import (
     CHINA_LABELS,
-    change,
+    TAIWAN_REFERENCE,
     china_exclusion_note,
+    is_taiwan_query,
     leaderboard_html,
-    money,
     number,
-    percent,
     podium_html,
     prepare_ranking,
     search_ranking,
     sort_options,
+    taiwan_availability_note,
 )
 
 
@@ -38,6 +39,13 @@ def load_data(year: int) -> pd.DataFrame:
 st.set_page_config(page_title="PPR · World ranking", page_icon="🌎", layout="wide")
 style = (Path(__file__).parent / "assets/dashboard.css").read_text(encoding="utf-8")
 st.html(f"<style>{style}</style>")
+parameters = st.query_params.to_dict()
+route_signature = tuple(sorted(parameters.items()))
+if st.session_state.get("applied_route") != route_signature:
+    for key, value in route_defaults(parameters).items():
+        if parameters or key not in st.session_state:
+            st.session_state[key] = value
+    st.session_state["applied_route"] = route_signature
 lang = st.sidebar.selectbox("Idioma / Language", ["pt", "en"], key="language",
                             format_func=lambda code: "Português" if code == "pt" else "English")
 
@@ -48,7 +56,7 @@ def text(key: str, **values) -> str:
 
 with st.sidebar:
     st.markdown(f"### {text('configure')}")
-    year = st.number_input(text("year"), min_value=1960, max_value=date.today().year, value=2023, step=1, key="data_year")
+    year = st.number_input(text("year"), min_value=1960, max_value=date.today().year, step=1, key="data_year")
     scenario_keys = ["double", "single", "none", "custom"]
     gdp_label = "PIB" if lang == "pt" else "GDP"
     scenario_key = st.radio(text("scenario"), scenario_keys, format_func=text, key="scenario",
@@ -57,17 +65,19 @@ with st.sidebar:
     scenario_index = scenario_keys.index(scenario_key)
     alpha = [2.0, 1.0, 0.0, 2.0][scenario_index]
     if scenario_index == 3:
-        alpha = st.slider(text("weight"), 0.0, 2.0, 2.0, 0.05, key="custom_alpha")
+        alpha = st.slider(text("weight"), 0.0, 2.0, step=0.05, key="custom_alpha")
     st.caption(text("g_warning"))
     china_mode = st.selectbox(text("china_mode"), ["separate", "combined"], key="china_mode",
                               format_func=lambda mode: text("china_separate" if mode == "separate" else "china_combined"))
     with st.expander(text("options")):
-        min_population = st.number_input(text("min_pop"), min_value=0, value=100_000, step=10_000, key="min_population")
+        min_population = st.number_input(text("min_pop"), min_value=0, step=10_000, key="min_population")
         refresh = st.button(text("refresh"), width="stretch")
         st.caption(text("cache"))
 
-st.title(text("title"))
-st.html(f'<p class="hero-copy">{text("intro")}</p>')
+route_country = requested_country(parameters)
+st.title(text("country_tab") if route_country else text("title"))
+if not route_country:
+    st.html(f'<p class="hero-copy">{text("intro")}</p>')
 st.html(f'<div class="context-pills"><span>{text("year_chip", year=year)}</span><span>{text("source")}</span>'
         f'<span>{text("usd")}</span><span>{text("deduction", alpha=f"{alpha:g}")}</span></div>')
 
@@ -76,6 +86,7 @@ try:
         if refresh:
             WorldBankDataLoader().fetch(int(year), refresh=True)
             load_data.clear()
+            load_history.clear()
         raw = load_data(int(year))
         prepared, aggregation = aggregate_china(raw, china_mode)
         config = PPRConfig(int(year), alpha, int(min_population))
@@ -98,6 +109,18 @@ if data.empty:
     st.warning(text("empty"))
     st.stop()
 
+def link_context() -> dict:
+    return {"year": int(year), "alpha": alpha, "lang": lang, "min_population": int(min_population),
+            "china_mode": china_mode, "sort": st.session_state.get("sort_order", route_defaults(parameters)["sort_order"]),
+            "q": st.session_state.get("country_search", parameters.get("q", ""))}
+
+
+if route_country:
+    analysis_link(text("back_ranking"), None, link_context())
+    render_country(data, route_country, int(year), alpha, lang, link_context(), with_history=True, refresh=refresh)
+    st.stop()
+
+
 ranking_tab, map_tab, country_tab, about_tab = st.tabs([text(key) for key in ("ranking", "map", "country_tab", "about")])
 with ranking_tab:
     st.caption(text("cohort", count=len(data), scenario=scenario))
@@ -115,6 +138,12 @@ with ranking_tab:
             selected = st.multiselect(text("show_countries"), sorted(country_names, key=country_names.get),
                                       format_func=country_names.get, help=text("filter_help"), key="country_filter")
     visible = search_ranking(ranked, query, selected)
+    if is_taiwan_query(query) or "TWN" in selected:
+        st.info(text("taiwan_context"))
+        note = taiwan_availability_note(raw, ranked, lang)
+        if note:
+            st.warning(note)
+        st.link_button(text("taiwan_source"), TAIWAN_REFERENCE)
     page_size = size_col.selectbox(text("results"), [0, 15, 30, 50, 100], key="page_size",
                                    format_func=lambda size: text("all", count=len(visible)) if size == 0 else str(size))
     china_focus = (bool(query.strip() or selected) and visible["country_code"].isin(CHINA_LABELS).any()) or (
@@ -127,7 +156,7 @@ with ranking_tab:
             if exclusion:
                 st.warning(exclusion)
     if not query.strip() and not selected:
-        st.html(podium_html(ranked, sort_label, lang))
+        st.html(podium_html(ranked, sort_label, lang, link_context()))
     if visible.empty:
         st.info(text("no_matches"))
     else:
@@ -140,7 +169,8 @@ with ranking_tab:
         page = st.session_state.get("ranking_page", 1)
         start = (page - 1) * size
         st.markdown(text("range", start=start + 1, end=min(start + size, len(visible)), count=len(visible)))
-        st.html(leaderboard_html(visible.iloc[start:start + size], sort_label, lang))
+        st.caption(text("click_country"))
+        st.html(leaderboard_html(visible.iloc[start:start + size], sort_label, lang, link_context()))
         if pages > 1:
             st.selectbox(text("page"), range(1, pages + 1), key="ranking_page",
                          format_func=lambda value: text("page_of", page=value, pages=pages))
@@ -170,8 +200,19 @@ with ranking_tab:
 with map_tab:
     st.subheader(text("map_title"))
     st.caption(text("map_note", criterion=sort_label, count=len(ranked)))
-    st.plotly_chart(world_map(ranked, lang), width="stretch", config={"displaylogo": False}, key="world_map")
+    st.caption(text("map_click"))
+    map_event = st.plotly_chart(world_map(ranked, lang), width="stretch", config={"displaylogo": False},
+                                key="world_map", on_select="rerun", selection_mode="points")
+    if map_event.selection.points:
+        point = map_event.selection.points[-1]
+        point_data = point.get("customdata", [])
+        clicked = point_data[5] if len(point_data) > 5 else point.get("location")
+        if clicked in set(ranked["country_code"]):
+            st.query_params.from_dict({**link_context(), "country": clicked})
+            st.rerun()
     st.caption(text("map_scope"))
+    if not ranked["country_code"].eq("TWN").any():
+        st.caption(taiwan_availability_note(raw, ranked, lang))
     if aggregation["applied"]:
         st.info(text("aggregate_note"))
 
@@ -182,34 +223,7 @@ with country_tab:
     codes = sorted(labels, key=labels.get)
     code = st.selectbox(text("choose_country"), codes, index=codes.index("BRA") if "BRA" in codes else 0,
                         format_func=labels.get, key="country_detail")
-    row = details.set_index("country_code").loc[code]
-    st.html(f'<div class="country-heading">{row["bandeira"]} {escape(row["nome"])}</div>')
-    st.caption(text("population_note", count=number(row["populacao"], lang=lang)))
-    st.caption(text("country_rank", ppr=int(row["rank_ppr_per_capita"]), count=len(data),
-                    gdp=int(row["rank_gdp_per_capita"]), change=change(row["dif_ranking"], lang)))
-    if code in CHINA_LABELS:
-        st.info(text("aggregate_note" if code == "CHN_AGG" else "china_context"))
-    original, discount, remaining = st.columns(3)
-    original.metric(text("gdp_pc"), money(row["gdp_per_capita"], 2, lang))
-    discount.metric(text("discount_pc"), money(row["gdp_per_capita"] - row["ppr_per_capita"], 2, lang))
-    remaining.metric(text("result_pc"), money(row["ppr_per_capita"], 2, lang))
-    st.html('<div class="explanation">' + text("explanation", retained=money(row["retencao_privada_pct"], 2, lang),
-            share=percent(row["peso_governo_pct"], lang), alpha=f"{alpha:g}") + '</div>')
-    if row["ppr"] < 0:
-        st.warning(text("negative"))
-    st.markdown(f"#### {text('scenarios')}")
-    scenarios = pd.DataFrame({
-        text("scenario_column"): [text("none"), text("single"), text("double")],
-        text("result_column"): [money((row["gdp"] - weight * row["gastos_governo"]) / row["populacao"], 2, lang)
-                                for weight in (0, 1, 2)],
-        text("retention_column"): [percent((1 - weight * row["gastos_governo"] / row["gdp"]) * 100, lang)
-                                   for weight in (0, 1, 2)],
-    })
-    st.dataframe(scenarios, hide_index=True, width="stretch")
-    with st.expander(text("totals")):
-        st.table(pd.DataFrame({text("indicator"): [text(key) for key in ("population", "gdp_total", "government", "ppr_total")],
-                               text("value"): [number(row["populacao"], lang=lang), money(row["gdp"], lang=lang),
-                                               money(row["gastos_governo"], lang=lang), money(row["ppr"], lang=lang)]}))
+    render_country(data, code, int(year), alpha, lang, link_context())
 
 with about_tab:
     st.subheader(text("about_title"))
@@ -218,6 +232,8 @@ with about_tab:
     with st.expander(text("china_question")):
         st.markdown(text("china_context"))
         st.markdown(text("aggregate_note"))
+        st.markdown(text("taiwan_context"))
+        st.link_button(text("taiwan_source"), TAIWAN_REFERENCE)
     with st.expander(text("technical")):
         full = build_dataset(raw, config, lang=lang, china_mode=china_mode)
         st.caption(text("technical_note"))

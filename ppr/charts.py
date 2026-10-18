@@ -32,7 +32,7 @@ def world_map(data: pd.DataFrame, lang: str = "pt") -> go.Figure:
     for _, row in data.iterrows():
         locations = CHINA_COMPONENTS if row["country_code"] == CHINA_AGGREGATE else [row["country_code"]]
         for code in locations:
-            mapped.append({"code": code, "rank": int(row["posicao"]), "name": row["nome"],
+            mapped.append({"code": code, "source_code": row["country_code"], "rank": int(row["posicao"]), "name": row["nome"],
                            "ppr": money(row["ppr_per_capita"], lang=lang),
                            "gdp": money(row["gdp_per_capita"], lang=lang),
                            "population": number(row["populacao"], lang=lang),
@@ -44,7 +44,7 @@ def world_map(data: pd.DataFrame, lang: str = "pt") -> go.Figure:
         colorscale=[[0, "#0f766e"], [0.5, "#f3d99f"], [1, "#bd5263"]],
         marker_line_color="#ffffff", marker_line_width=0.5,
         colorbar={"title": t("map_rank", lang), "tickformat": "d", "thickness": 14},
-        customdata=frame[["name", "ppr", "gdp", "retention", "population"]],
+        customdata=frame[["name", "ppr", "gdp", "retention", "population", "source_code"]],
         hovertemplate=(f"<b>%{{customdata[0]}}</b><br>{t('map_rank', lang)}: #%{{z:.0f}}"
                        f"<br>{t('ppr_pc', lang)}: %{{customdata[1]}}<br>{t('gdp_pc', lang)}: %{{customdata[2]}}"
                        f"<br>{t('retention', lang)}: %{{customdata[3]}}"
@@ -55,6 +55,31 @@ def world_map(data: pd.DataFrame, lang: str = "pt") -> go.Figure:
                        showframe=False, showcoastlines=False,
                        showland=True, landcolor="#e2e8f0", showcountries=True, countrycolor="white",
                        bgcolor="rgba(0,0,0,0)")
-    figure.update_layout(height=550, margin={"l": 0, "r": 0, "t": 0, "b": 0},
+    figure.update_layout(height=550, clickmode="event+select", margin={"l": 0, "r": 0, "t": 0, "b": 0},
                          paper_bgcolor="rgba(0,0,0,0)", font={"family": "sans-serif", "color": "#172b41"})
+    return figure
+
+
+def history_chart(data: pd.DataFrame, per_capita: bool = False, lang: str = "pt") -> go.Figure:
+    frame = data.sort_values("year")
+    suffix = "_per_capita" if per_capita else ""
+    figure = go.Figure()
+    for metric, color in (("gdp", "#64748b"), ("ppr", "#0f766e")):
+        label = t(f"{metric}_pc" if per_capita else f"{metric}_total", lang)
+        values = frame[metric + suffix]
+        custom = [[money(value, 2, lang) if pd.notna(value) else "—",
+                   number(population, lang=lang) if pd.notna(population) else "—"]
+                  for value, population in zip(values, frame["populacao"], strict=True)]
+        figure.add_trace(go.Scatter(
+            x=frame["year"].tolist(), y=values.where(values.notna(), None).tolist(),
+            mode="lines+markers", name=label, line={"color": color, "width": 3},
+            marker={"size": 5}, connectgaps=False, customdata=custom,
+            hovertemplate=(f"<b>{label}</b><br>%{{x:.0f}}: %{{customdata[0]}}"
+                           f"<br>{t('population', lang)}: %{{customdata[1]}}<extra></extra>"),
+        ))
+    figure.update_layout(height=430, hovermode="x unified", legend={"orientation": "h", "y": 1.12},
+                         margin={"l": 0, "r": 10, "t": 35, "b": 0},
+                         xaxis={"title": t("year", lang), "tickformat": "d"},
+                         yaxis={"title": t("usd_per_person" if per_capita else "usd", lang), "tickformat": "~s"},
+                         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     return figure

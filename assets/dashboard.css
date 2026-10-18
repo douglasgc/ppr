@@ -27,6 +27,9 @@ table.leaderboard { width: 100%; border-collapse: collapse; font-size: .86rem; w
 .leaderboard tbody tr:hover { background: #f5faf8; }
 .position { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; min-height: 32px; border-radius: 8px; background: #edf2f6; color: #506277; font-weight: 650; }
 .country-cell { display: flex; align-items: center; gap: 11px; }
+a.country-link { color: inherit; text-decoration: none; }
+a.country-link:hover, a.country-link:focus-visible { color: #0f766e; text-decoration: underline; }
+.analysis-button { display: inline-block; padding: 9px 15px; margin: 8px 0 18px; background: #e7f3ef; border: 1px solid #b8d8cc; border-radius: 8px; color: #0f766e !important; font-size: .9rem; font-weight: 600; text-decoration: none; }
 .flag { font-size: 1.4rem; }
 .country-cell small { display: block; color: #64748b; font-size: .67rem; font-weight: 400; margin-top: 3px; line-height: 1.5; }
 .country-cell small.mobile-population { display: none; }
