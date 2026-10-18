@@ -1,0 +1,33 @@
+# PPR study — agent entry point
+
+Read README.en.md (or README.md in Portuguese) for methodology and limitations.
+Run `uv run ppr-serve` for HTTP + MCP on http://127.0.0.1:8000.
+
+- GET /api/metadata: full field dictionary, source indicator codes, units and thesis.
+- GET /api/data?year=2023&alpha=2&min_population=0&lang=en: all calculated and raw data.
+- GET /api/data?china_mode=combined&countries=CHN_AGG: synthetic combined China.
+- GET /api/countries/BRA: country-level data with full-cohort rankings preserved.
+- /docs and /openapi.json: HTTP contract. /mcp: official MCP Streamable HTTP.
+- MCP tools: get_metadata, get_dataset, get_country. Resource: ppr://metadata.
+
+Responses contain metadata, records, excluded and raw_records, with numeric values
+and null for missing inputs. There is no top-N or pagination cap. Verify record_count
+and raw_record_count against array lengths. complete/truncated describe response
+completeness, not universal source coverage. An LLM context budget may still limit
+model-visible output: download the file or query by country rather than infer unseen rows.
+
+GDP and monetary values are current USD, not PPP-adjusted. G is government final
+consumption, NOT total spending. PPR = GDP - alpha*G is a Rothbard-inspired simulation,
+not an official welfare statistic or a full historical reconstruction. Rank changes
+compare PPR and GDP in the SAME year, not historical growth. generated_at is response
+time, not source publication or refresh time. Cache snapshots do not expire on disk.
+
+CHN excludes Hong Kong and Macao. Combined mode replaces CHN/HKG/MAC with CHN_AGG,
+summing same-year levels before computing per-person measures. It requires every
+essential input for all three regions; never invent a partial aggregate. Raw source
+rows remain available. Trade components are not consolidated for internal flows.
+
+English field names are stable; lang changes descriptive text and display names.
+countries is comma-separated over HTTP, a list in MCP. It filters views, not ranks.
+Optional PPR_API_TOKEN requires Authorization: Bearer <token> on every route.
+The local read-only service does not send data to an external LLM automatically.

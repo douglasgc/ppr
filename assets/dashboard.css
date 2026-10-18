@@ -1,0 +1,64 @@
+.stMainBlockContainer { max-width: 1320px; padding-top: 1.8rem; }
+section[data-testid="stSidebar"] { border-right: 1px solid #e4eaf0; }
+h1 { letter-spacing: -1.5px; font-size: 2.7rem !important; }
+h2, h3 { letter-spacing: -.5px; }
+.hero-copy { color: #52647a; font-size: 1.05rem; max-width: 780px; margin: 0 0 18px; line-height: 1.6; }
+.context-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.context-pills span { background: #eaf0f5; color: #43556b; border-radius: 20px; padding: 6px 12px; font-size: .78rem; }
+[data-testid="stMetric"] { background: white; padding: 16px 20px; border: 1px solid #e1e8ef; border-radius: 12px; }
+[data-testid="stMetricValue"] { font-size: 1.8rem; }
+[data-testid="stTabs"] { margin-top: 6px; }
+button[data-baseweb="tab"] { font-weight: 600; padding: 10px 16px; }
+.leaders { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 4px 0 22px; }
+.leader-card { position: relative; border: 1px solid #e0e7ed; border-radius: 14px; padding: 16px; background: #fff; overflow: hidden; }
+.leader-card:first-child { background: #eef8f5; border-color: #abd4c6; }
+.leader-place { float: right; font-size: .72rem; font-weight: 750; color: #0f766e; background: #dcefe9; border-radius: 7px; padding: 3px 7px; margin-left: 6px; }
+.leader-country { font-size: .95rem; font-weight: 650; line-height: 1.4; margin-bottom: 7px; }
+.leader-value { font-size: 1.7rem; font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -1px; margin-bottom: 3px; }
+.muted { color: #65768a; font-size: .76rem; line-height: 1.5; }
+.leaderboard-wrap { width: 100%; overflow-x: auto; background: #fff; border: 1px solid #e1e8ef; border-radius: 12px; }
+table.leaderboard { width: 100%; border-collapse: collapse; font-size: .86rem; white-space: nowrap; margin: 0; }
+.leaderboard thead { background: #edf2f6; }
+.leaderboard thead th { padding: 15px 16px; color: #52647a; font-size: .74rem; font-weight: 600; text-align: right; border: 0; }
+.leaderboard thead th:nth-child(-n+2) { text-align: left; }
+.leaderboard tbody td, .leaderboard tbody th { border: 0; border-top: 1px solid #eef2f6; padding: 15px 16px; text-align: right; font-variant-numeric: tabular-nums; }
+.leaderboard tbody th { text-align: left; font-weight: 600; white-space: normal; min-width: 150px; }
+.leaderboard tbody td:first-child { text-align: left; width: 55px; }
+.leaderboard tbody tr:hover { background: #f5faf8; }
+.position { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; min-height: 32px; border-radius: 8px; background: #edf2f6; color: #506277; font-weight: 650; }
+.country-cell { display: flex; align-items: center; gap: 11px; }
+.flag { font-size: 1.4rem; }
+.country-cell small { display: block; color: #64748b; font-size: .67rem; font-weight: 400; margin-top: 3px; line-height: 1.5; }
+.country-cell small.mobile-population { display: none; }
+.population-column { color: #617287; }
+.primary-value { color: #0f766e; font-weight: 750; }
+.secondary-column { color: #617287; }
+.movement { padding: 5px 8px; border-radius: 6px; font-size: .72rem; font-weight: 550; }
+.up { color: #146c50; background: #e9f6ef; }
+.down { color: #ac3c38; background: #fff0ed; }
+.neutral { color: #64748b; background: #f1f4f7; }
+.explanation { background: #eaf3f8; border-left: 3px solid #74a6bd; border-radius: 0 9px 9px 0; padding: 16px 20px; color: #3f576d; font-size: .9rem; line-height: 1.7; margin: 12px 0 22px; }
+.country-heading { font-size: 1.7rem; font-weight: 700; letter-spacing: -.5px; margin: 18px 0 6px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+@media (max-width: 900px) {
+  .secondary-column { display: none; }
+  .leader-value { font-size: 1.5rem; }
+  .leader-card { padding: 16px; }
+}
+@media (max-width: 600px) {
+  .population-column { display: none; }
+  .country-cell small.mobile-population { display: block; }
+  .stMainBlockContainer { padding: 3.5rem 1rem 1.3rem; }
+  h1 { font-size: 2rem !important; }
+  .leaders { grid-template-columns: 1fr; gap: 8px; }
+  .leader-card:not(:first-child) { display: none; }
+  .leader-card { padding: 14px 16px; }
+  .leader-place { margin-bottom: 7px; }
+  .leader-value { font-size: 1.6rem; }
+  .leaderboard tbody td, .leaderboard tbody th, .leaderboard thead th { padding: 12px 8px; }
+  table.leaderboard { font-size: .76rem; }
+  .leaderboard tbody th { min-width: 112px; }
+  .flag { display: none; }
+  .position { min-width: 24px; font-size: .72rem; }
+  .movement { padding: 4px; font-size: .64rem; }
+}
